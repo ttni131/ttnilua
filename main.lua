@@ -134,4 +134,36 @@ RunService.RenderStepped:Connect(function()
     if not _G_TTNI_RUNNING then return end
     
     FOVCircle.Visible = TTNI_Configs.FOVEnabled
-    FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.
+    FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    
+    if TTNI_Configs.AimAssist then
+        local t = nil
+        local sd = math.huge
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character.Humanoid.Health > 0 then
+                local pos, vis = Camera:WorldToViewportPoint(p.Character.HumanoidRootPart.Position)
+                if vis then
+                    local d = (Vector2.new(pos.X, pos.Y) - FOVCircle.Position).Magnitude
+                    if d < sd and d <= TTNI_Configs.FOVRadius then
+                        t = p; sd = d
+                    end
+                end
+            end
+        end
+        if t then Camera.CFrame = CFrame.new(Camera.CFrame.Position, t.Character.HumanoidRootPart.Position) end
+    end
+
+    if TTNI_Configs.Chams then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and not p.Character:FindFirstChild("TTNI_Ice") then
+                local h = Instance.new("Highlight", p.Character)
+                h.Name = "TTNI_Ice"
+                h.FillColor = Color3.fromRGB(150, 230, 255)
+            end
+        end
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(k)
+    if k.KeyCode == TTNI_Configs.MenuKey and _G_TTNI_RUNNING then Main.Visible = not Main.Visible end
+end)
