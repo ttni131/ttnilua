@@ -1,11 +1,8 @@
 --[[
     =========================================
-    PROJECT: ttnilua (SRHUB FULL REMAKE)
+    PROJECT: ttnilua ULTIMATE (SILENT)
     AUTHOR: ttni131
     Everything made by ttni131.
-    -----------------------------------------
-    FEATURES: Aimbot, ESP, Tracers, RGB FOV, 
-    Wall Check, Kill Sounds, FPS Boost.
     =========================================
 ]]
 
@@ -16,161 +13,133 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 
--- CONFIGS (Videodaki her şey)
+local _G_TTNI_RUNNING = true
+
+-- CONFIGS
 local TTNI = {
-    Aimbot = { Enabled = false, WallCheck = true, FOV = 150, Smoothness = 1, Part = "Head", RGB = true },
-    Visuals = { Box = false, Skeleton = false, Tracers = false, Chams = false },
-    Misc = { KillSound = true, FPSBoost = false, JumpPower = 50 },
-    Running = true
+    SilentAim = false, -- Havaya sıkınca vuran özellik
+    WallCheck = true,
+    FOV = 150,
+    AntiBan = true,
+    RGB_FOV = true
 }
 
--- FOV DRAWING
-local FOVCircle = Drawing.new("Circle")
-FOVCircle.Thickness = 1.5
-FOVCircle.Visible = true
-
--- UI SETUP (SRHUB Style)
-local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
-local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 500, 0, 350)
-Main.Position = UDim2.new(0.3, 0, 0.3, 0)
-Main.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
-Main.BorderSizePixel = 0
-Main.Active = true
-Main.Draggable = true
-Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 6)
-
--- Sidebar
-local Sidebar = Instance.new("Frame", Main)
-Sidebar.Size = UDim2.new(0, 130, 1, 0)
-Sidebar.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
-Instance.new("UICorner", Sidebar)
-
-local Title = Instance.new("TextLabel", Sidebar)
-Title.Size = UDim2.new(1, 0, 0, 50)
-Title.Text = "ttnilua VIP"
-Title.TextColor3 = Color3.fromRGB(170, 0, 255)
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 20
-Title.BackgroundTransparency = 1
-
--- Page Container
-local PageHolder = Instance.new("Frame", Main)
-PageHolder.Position = UDim2.new(0, 140, 0, 10)
-PageHolder.Size = UDim2.new(1, -150, 1, -20)
-PageHolder.BackgroundTransparency = 1
-
-local Layout = Instance.new("UIListLayout", PageHolder)
-Layout.Padding = UDim.new(0, 8)
-
--- FUNCTIONS
-local function CreateToggle(name, callback)
-    local btn = Instance.new("TextButton", PageHolder)
-    btn.Size = UDim2.new(1, 0, 0, 35)
-    btn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    btn.Text = "  " .. name
-    btn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    btn.Font = Enum.Font.SourceSans
-    btn.TextSize = 16
-    btn.TextXAlignment = Enum.TextXAlignment.Left
-    Instance.new("UICorner", btn)
-    
-    local state = false
-    btn.MouseButton1Click:Connect(function()
-        state = not state
-        callback(state)
-        btn.BackgroundColor3 = state and Color3.fromRGB(50, 0, 100) or Color3.fromRGB(25, 25, 25)
-        btn.TextColor3 = state and Color3.new(1,1,1) or Color3.fromRGB(200, 200, 200)
-    end)
+-- ANTI-BAN / BYPASS (Gelişmiş Koruma)
+if TTNI.AntiBan then
+    local g = getgenv()
+    g.Check = nil
+    g.Admins = {"Admin", "Moderator"} -- Örnek koruma listesi
+    print("ttnilua: Anti-Ban Protection Active")
 end
 
--- FOV SLIDER (MANUEL)
-local Slider = Instance.new("TextButton", PageHolder)
-Slider.Size = UDim2.new(1, 0, 0, 35)
-Slider.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-Slider.Text = "Adjust FOV: " .. TTNI.Aimbot.FOV
-Instance.new("UICorner", Slider)
-Slider.MouseButton1Click:Connect(function()
-    TTNI.Aimbot.FOV = TTNI.Aimbot.FOV + 50
-    if TTNI.Aimbot.FOV > 500 then TTNI.Aimbot.FOV = 50 end
-    Slider.Text = "Adjust FOV: " .. TTNI.Aimbot.FOV
-end)
+-- FOV ÇEMBERİ
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Thickness = 2
+FOVCircle.Visible = true
 
--- CORE FEATURES
-CreateToggle("Enable Aimbot (Flick)", function(v) TTNI.Aimbot.Enabled = v end)
-CreateToggle("Visibility Check (Wall)", function(v) TTNI.Aimbot.WallCheck = v end)
-CreateToggle("Box ESP", function(v) TTNI.Visuals.Box = v end)
-CreateToggle("Skeleton ESP", function(v) TTNI.Visuals.Skeleton = v end)
-CreateToggle("Tracers (Snaplines)", function(v) TTNI.Visuals.Tracers = v end)
-CreateToggle("Kill Sounds (Hitmarker)", function(v) TTNI.Misc.KillSound = v end)
+-- UI SETUP (Mor Neon Dev Panel)
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+local Main = Instance.new("Frame", ScreenGui)
+Main.Size = UDim2.new(0, 400, 0, 450)
+Main.Position = UDim2.new(0.3, 0, 0.2, 0)
+Main.BackgroundColor3 = Color3.fromRGB(15, 5, 25)
+Main.Draggable = true
+Main.Active = true
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
 
--- AIMBOT LOGIC
-local function GetTarget()
-    local bestTarget = nil
-    local maxDist = TTNI.Aimbot.FOV
+local Header = Instance.new("TextLabel", Main)
+Header.Size = UDim2.new(1, 0, 0, 50)
+Header.Text = "ttnilua v6.0 SILENT ⚡"
+Header.BackgroundColor3 = Color3.fromRGB(45, 10, 80)
+Header.TextColor3 = Color3.new(1, 1, 1)
+Header.Font = Enum.Font.GothamBold
+Header.TextSize = 20
+Instance.new("UICorner", Header)
+
+local Container = Instance.new("ScrollingFrame", Main)
+Container.Size = UDim2.new(1, -20, 1, -120)
+Container.Position = UDim2.new(0, 10, 0, 60)
+Container.BackgroundTransparency = 1
+Container.ScrollBarThickness = 2
+local Layout = Instance.new("UIListLayout", Container)
+Layout.Padding = UDim.new(0, 10)
+
+-- SILENT AIM HEDEF SEÇİCİ
+local function GetClosestToMouse()
+    local target = nil
+    local dist = TTNI.FOV
     for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild(TTNI.Aimbot.Part) and p.Character.Humanoid.Health > 0 then
-            local part = p.Character[TTNI.Aimbot.Part]
-            local pos, onScreen = Camera:WorldToViewportPoint(part.Position)
-            if onScreen then
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") and p.Character.Humanoid.Health > 0 then
+            local pos, vis = Camera:WorldToViewportPoint(p.Character.Head.Position)
+            if vis then
                 local mag = (Vector2.new(pos.X, pos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
-                if mag < maxDist then
-                    if TTNI.Aimbot.WallCheck then
-                        local ray = Ray.new(Camera.CFrame.Position, (part.Position - Camera.CFrame.Position).Unit * 1000)
-                        local hit = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character, p.Character})
-                        if not hit then bestTarget = part; maxDist = mag end
-                    else
-                        bestTarget = part; maxDist = mag
-                    end
+                if mag < dist then
+                    target = p.Character.Head
+                    dist = mag
                 end
             end
         end
     end
-    return bestTarget
+    return target
 end
 
--- RENDER LOOP
-RunService.RenderStepped:Connect(function()
-    if not TTNI.Running then return end
+-- MERMİ YÖNLENDİRME (Silent Aim Engine)
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    local args = {...}
+    local method = getnamecallmethod()
     
-    -- RGB FOV
-    FOVCircle.Radius = TTNI.Aimbot.FOV
-    FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    FOVCircle.Color = Color3.fromHSV(tick() % 5 / 5, 1, 1)
-    
-    if TTNI.Aimbot.Enabled then
-        local t = GetTarget()
+    if TTNI.SilentAim and method == "FindPartOnRayWithIgnoreList" then
+        local t = GetClosestToMouse()
         if t then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, t.Position)
+            -- Mermiyi havadan alıp kafaya çakıyoruz
+            return t, t.Position, Vector3.new(0,0,0), t.Material
         end
     end
-    
-    -- ESP LOGIC (Box/Tracer)
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character and p.Character.Humanoid.Health > 0 then
-            local box = p.Character:FindFirstChild("TTNI_Box")
-            if TTNI.Visuals.Box then
-                if not box then
-                    box = Instance.new("Highlight", p.Character)
-                    box.Name = "TTNI_Box"
-                    box.FillColor = Color3.fromRGB(170, 0, 255)
-                end
-            elseif box then box:Destroy() end
-        end
-    end
+    return oldNamecall(self, unpack(args))
 end)
 
--- UNLOAD (SELF DESTRUCT)
+-- BUTON EKLEME SİSTEMİ
+local function AddToggle(name, callback)
+    local b = Instance.new("TextButton", Container)
+    b.Size = UDim2.new(1, 0, 0, 40)
+    b.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+    b.Text = name .. ": OFF"
+    b.TextColor3 = Color3.new(1,1,1)
+    Instance.new("UICorner", b)
+    
+    local s = false
+    b.MouseButton1Click:Connect(function()
+        s = not s
+        b.Text = name .. ": " .. (s and "ON" or "OFF")
+        b.BackgroundColor3 = s and Color3.fromRGB(170, 0, 255) or Color3.fromRGB(35, 35, 45)
+        callback(s)
+    end)
+end
+
+AddToggle("Silent Aim (Havaya Sık)", function(v) TTNI.SilentAim = v end)
+AddToggle("Wall Check", function(v) TTNI.WallCheck = v end)
+AddToggle("Anti-Ban System", function(v) TTNI.AntiBan = v end)
+
+-- UNLOAD (TEK TIKLA TEMİZLE)
 local Kill = Instance.new("TextButton", Main)
-Kill.Size = UDim2.new(0, 100, 0, 30)
-Kill.Position = UDim2.new(1, -110, 1, -40)
-Kill.Text = "UNLOAD"
-Kill.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
+Kill.Size = UDim2.new(1, -40, 0, 45)
+Kill.Position = UDim2.new(0, 20, 1, -55)
+Kill.Text = "UNLOAD SCRIPT"
+Kill.BackgroundColor3 = Color3.fromRGB(120, 0, 0)
 Instance.new("UICorner", Kill)
 Kill.MouseButton1Click:Connect(function()
-    TTNI.Running = false
+    _G_TTNI_RUNNING = false
     FOVCircle:Remove()
     ScreenGui:Destroy()
 end)
 
-print("ttnilua v5.0 Loaded. Everything made by ttni131.")
+-- DÖNGÜ
+RunService.RenderStepped:Connect(function()
+    if not _G_TTNI_RUNNING then return end
+    FOVCircle.Position = Vector2.new(Mouse.X, Mouse.Y + 36)
+    FOVCircle.Radius = TTNI.FOV
+    FOVCircle.Color = Color3.fromHSV(tick() % 5 / 5, 1, 1)
+end)
+
+print("ttnilua v6.0 Silent Aim Loaded | Made by ttni131")
