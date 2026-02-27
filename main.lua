@@ -1,6 +1,6 @@
 --[[
     =========================================
-    PROJECT: ttnilua ULTIMATE 3D
+    PROJECT: ttnilua ULTIMATE ESP & AIM
     AUTHOR: ttni131
     Everything made by ttni131.
     =========================================
@@ -18,15 +18,14 @@ local _G_TTNI_RUNNING = true
 -- AYARLAR
 local TTNI = {
     AimActive = false,
-    WallCheck = true,
+    ESP_Enabled = false,
+    ThirdPerson = false,
     Spinbot = false,
-    Bhop = false,
-    ThirdPerson = false, -- Yeni 3D Görünüm
     FOV = 150,
-    KillSound = true
+    WallCheck = true -- Sadece görüş açındakilere kitlenmesi için her zaman açık tutulabilir
 }
 
--- FOV ÇEMBERİ
+-- FOV ÇEMBERİ (RGB)
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 2
 FOVCircle.Visible = true
@@ -34,17 +33,17 @@ FOVCircle.Visible = true
 -- UI SETUP (MOR NEON)
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 350, 0, 520)
+Main.Size = UDim2.new(0, 350, 0, 500)
 Main.Position = UDim2.new(0.35, 0, 0.2, 0)
-Main.BackgroundColor3 = Color3.fromRGB(15, 0, 30)
+Main.BackgroundColor3 = Color3.fromRGB(15, 0, 25)
 Main.Active = true
 Main.Draggable = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 15)
 
 local Header = Instance.new("TextLabel", Main)
 Header.Size = UDim2.new(1, 0, 0, 60)
-Header.Text = "ttnilua 3D VIP v8.0 ❄️"
-Header.BackgroundColor3 = Color3.fromRGB(70, 0, 130)
+Header.Text = "ttnilua v9.0 ESP-AIM ⚡"
+Header.BackgroundColor3 = Color3.fromRGB(50, 0, 90)
 Header.TextColor3 = Color3.new(1, 1, 1)
 Header.Font = Enum.Font.GothamBold
 Header.TextSize = 20
@@ -58,22 +57,30 @@ Container.ScrollBarThickness = 0
 local Layout = Instance.new("UIListLayout", Container)
 Layout.Padding = UDim.new(0, 10)
 
--- AIMBOT TARGET SEÇİCİ (DÜZELTİLDİ)
-local function GetClosestTarget()
+-- DUVAR KONTROLÜ (Visibility Check)
+local function IsVisible(part)
+    local castPoints = {Camera.CFrame.Position, part.Position}
+    local ignoreList = {LocalPlayer.Character, part.Parent}
+    local ray = Ray.new(Camera.CFrame.Position, (part.Position - Camera.CFrame.Position).Unit * 1000)
+    local hit, pos = workspace:FindPartOnRayWithIgnoreList(ray, ignoreList)
+    return hit == nil or hit:IsDescendantOf(part.Parent)
+end
+
+-- TARGET SEÇİCİ (Görüş Açısı Odaklı)
+local function GetTarget()
     local target = nil
     local dist = TTNI.FOV
     for _, p in pairs(Players:GetPlayers()) do
         if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") and p.Character.Humanoid.Health > 0 then
-            local pos, vis = Camera:WorldToViewportPoint(p.Character.Head.Position)
-            if vis then
-                local mag = (Vector2.new(pos.X, pos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
-                if mag < dist then
-                    if TTNI.WallCheck then
-                        local ray = Ray.new(Camera.CFrame.Position, (p.Character.Head.Position - Camera.CFrame.Position).Unit * 1000)
-                        local hit = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character, p.Character})
-                        if not hit then target = p.Character.Head; dist = mag end
-                    else
-                        target = p.Character.Head; dist = mag
+            local head = p.Character.Head
+            local pos, vis = Camera:WorldToViewportPoint(head.Position)
+            
+            if vis then -- Eğer adam ekrandaysa
+                if IsVisible(head) then -- Eğer adam duvar arkası değilse
+                    local mag = (Vector2.new(pos.X, pos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
+                    if mag < dist then
+                        target = head
+                        dist = mag
                     end
                 end
             end
@@ -82,11 +89,11 @@ local function GetClosestTarget()
     return target
 end
 
--- BUTON EKLEME
+-- BUTON SİSTEMİ
 local function AddToggle(name, callback)
     local b = Instance.new("TextButton", Container)
     b.Size = UDim2.new(1, 0, 0, 40)
-    b.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+    b.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
     b.Text = name
     b.TextColor3 = Color3.new(1,1,1)
     Instance.new("UICorner", b)
@@ -95,29 +102,18 @@ local function AddToggle(name, callback)
     b.MouseButton1Click:Connect(function()
         s = not s
         callback(s)
-        b.BackgroundColor3 = s and Color3.fromRGB(170, 0, 255) or Color3.fromRGB(30, 30, 45)
+        b.BackgroundColor3 = s and Color3.fromRGB(170, 0, 255) or Color3.fromRGB(30, 30, 40)
     end)
 end
 
-AddToggle("Aimbot (Fixed Lock)", function(v) TTNI.AimActive = v end)
+AddToggle("Aimbot (Görünce Kitlen)", function(v) TTNI.AimActive = v end)
+AddToggle("Full ESP (Box & Highlight)", function(v) TTNI.ESP_Enabled = v end)
 AddToggle("3D View (Third Person)", function(v) TTNI.ThirdPerson = v end)
-AddToggle("Spinbot (Mevlana)", function(v) TTNI.Spinbot = v end)
-AddToggle("Bunnyhop", function(v) TTNI.Bhop = v end)
-AddToggle("Wall Check", function(v) TTNI.WallCheck = v end)
+AddToggle("Mevlana (Spinbot)", function(v) TTNI.Spinbot = v end)
 
 -- ANA DÖNGÜ
 RunService.RenderStepped:Connect(function()
     if not _G_TTNI_RUNNING then return end
-
-    -- 3D GÖRÜNÜM (Third Person)
-    if TTNI.ThirdPerson then
-        LocalPlayer.CameraMode = Enum.CameraMode.Classic
-        LocalPlayer.CameraMaxZoomDistance = 12
-        LocalPlayer.CameraMinZoomDistance = 12
-    else
-        LocalPlayer.CameraMaxZoomDistance = 0.5 -- FPS Modu
-        LocalPlayer.CameraMinZoomDistance = 0.5
-    end
 
     -- RGB FOV
     FOVCircle.Position = Vector2.new(Mouse.X, Mouse.Y + 36)
@@ -126,13 +122,40 @@ RunService.RenderStepped:Connect(function()
 
     -- AIMBOT LOCK
     if TTNI.AimActive then
-        local t = GetClosestTarget()
+        local t = GetTarget()
         if t then
             Camera.CFrame = CFrame.new(Camera.CFrame.Position, t.Position)
         end
     end
 
-    -- SPINBOT (Mevlana)
+    -- ESP SİSTEMİ
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            local h = p.Character:FindFirstChild("TTNI_ESP")
+            if TTNI.ESP_Enabled and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+                if not h then
+                    h = Instance.new("Highlight", p.Character)
+                    h.Name = "TTNI_ESP"
+                    h.FillColor = Color3.fromRGB(170, 0, 255)
+                    h.OutlineColor = Color3.new(1, 1, 1)
+                    h.FillTransparency = 0.5
+                end
+            elseif h then
+                h:Destroy()
+            end
+        end
+    end
+
+    -- 3D GÖRÜNÜM
+    if TTNI.ThirdPerson then
+        LocalPlayer.CameraMaxZoomDistance = 12
+        LocalPlayer.CameraMinZoomDistance = 12
+    else
+        LocalPlayer.CameraMaxZoomDistance = 0.5
+        LocalPlayer.CameraMinZoomDistance = 0.5
+    end
+
+    -- SPINBOT
     if TTNI.Spinbot and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         LocalPlayer.Character.HumanoidRootPart.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.Angles(0, math.rad(60), 0)
     end
@@ -147,10 +170,8 @@ Unload.BackgroundColor3 = Color3.fromRGB(120, 0, 0)
 Instance.new("UICorner", Unload)
 Unload.MouseButton1Click:Connect(function()
     _G_TTNI_RUNNING = false
-    LocalPlayer.CameraMaxZoomDistance = 128
-    LocalPlayer.CameraMinZoomDistance = 0.5
     FOVCircle:Remove()
     ScreenGui:Destroy()
 end)
 
-print("ttnilua v8.0 Loaded | 3D View & Fixed Aim Active")
+print("ttnilua v9.0 | ESP & Legit Aim Loaded!")
