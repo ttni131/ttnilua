@@ -1,13 +1,12 @@
 --[[
     =========================================
-    PROJECT: TTNI PREMIUM HUB (ROBLOX)
-    AUTHOR: TTNI
-    STATUS: FULLY FUNCTIONAL
-    Everything made by TTNI.
+    PROJECT: TTNI PREMIUM HUB (FPS FLICK EDITION)
+    AUTHOR: ttni131
+    STATUS: INJECT READY
+    Everything made by ttni131.
     =========================================
 ]]
 
--- SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -15,41 +14,35 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 
--- CONFIGS (TTNI SETTINGS)
+-- CONFIGS
 local TTNI_Configs = {
     AimAssist = false,
+    FlickMode = true, -- Sert kilitlenme açık
     SilentAim = false,
     FOVEnabled = true,
-    FOVRadius = 100,
-    FOVColor = Color3.fromRGB(255, 255, 255),
-    ESPEnabled = false,
-    Boxes = false,
-    Health = false,
+    FOVRadius = 150, -- Flick için biraz daha geniş bir alan iyi olur
     Chams = false,
     MenuKey = Enum.KeyCode.RightShift
 }
 
--- FOV CIRCLE DRAWING
+-- FOV DRAWING
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
-FOVCircle.Color = TTNI_Configs.FOVColor
-FOVCircle.Filled = false
-FOVCircle.Visible = TTNI_Configs.FOVEnabled
+FOVCircle.Color = Color3.fromRGB(0, 255, 255)
+FOVCircle.Visible = true
 FOVCircle.Radius = TTNI_Configs.FOVRadius
 
--- GET CLOSEST PLAYER FUNCTION
+-- GET CLOSEST TARGET
 local function GetClosestPlayer()
     local target = nil
     local shortestDistance = math.huge
 
     for _, v in pairs(Players:GetPlayers()) do
-        if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
+        if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Character:FindFirstChild("Humanoid").Health > 0 then
             local pos, onScreen = Camera:WorldToViewportPoint(v.Character.HumanoidRootPart.Position)
             if onScreen then
-                local mousePos = Vector2.new(Mouse.X, Mouse.Y)
-                local distance = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
-                
-                if distance < shortestDistance and distance <= (TTNI_Configs.FOVEnabled and TTNI_Configs.FOVRadius or math.huge) then
+                local distance = (Vector2.new(pos.X, pos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
+                if distance < shortestDistance and distance <= TTNI_Configs.FOVRadius then
                     target = v
                     shortestDistance = distance
                 end
@@ -59,121 +52,84 @@ local function GetClosestPlayer()
     return target
 end
 
--- SIMPLE UI CREATION (TTNI PANEL)
-local ScreenGui = Instance.new("ScreenGui")
-local MainFrame = Instance.new("Frame")
-local Title = Instance.new("TextLabel")
-local Layout = Instance.new("UIListLayout")
+-- UI (Minimal & Dark)
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+local Main = Instance.new("Frame", ScreenGui)
+Main.Size = UDim2.new(0, 200, 0, 250)
+Main.Position = UDim2.new(0.05, 0, 0.4, 0)
+Main.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+Main.Active = true
+Main.Draggable = true
 
-ScreenGui.Name = "TTNI_Hub"
-ScreenGui.Parent = game.CoreGui
-ScreenGui.ResetOnSpawn = false
-
-MainFrame.Name = "Main"
-MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-MainFrame.Position = UDim2.new(0.05, 0, 0.4, 0)
-MainFrame.Size = UDim2.new(0, 180, 0, 320)
-MainFrame.Active = true
-MainFrame.Draggable = true
-
-Title.Parent = MainFrame
+local Title = Instance.new("TextLabel", Main)
 Title.Size = UDim2.new(1, 0, 0, 30)
-Title.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-Title.Text = "TTNI HUB V1"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 18
+Title.Text = "TTNI FLICK | ttni131"
+Title.TextColor3 = Color3.fromRGB(0, 255, 255)
+Title.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 
-Layout.Parent = MainFrame
+local Layout = Instance.new("UIListLayout", Main)
 Layout.Padding = UDim.new(0, 5)
-Layout.SortOrder = Enum.SortOrder.LayoutOrder
 
--- Helper Function for Buttons
-local function CreateButton(name, callback)
-    local btn = Instance.new("TextButton")
-    btn.Parent = MainFrame
-    btn.Size = UDim2.new(1, -10, 0, 30)
-    btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+local function CreateToggle(name, callback)
+    local btn = Instance.new("TextButton", Main)
+    btn.Size = UDim2.new(1, 0, 0, 35)
     btn.Text = name .. ": OFF"
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     
     local state = false
     btn.MouseButton1Click:Connect(function()
         state = not state
         btn.Text = name .. ": " .. (state and "ON" or "OFF")
-        btn.BackgroundColor3 = state and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(60, 60, 60)
+        btn.BackgroundColor3 = state and Color3.fromRGB(0, 100, 200) or Color3.fromRGB(30, 30, 30)
         callback(state)
     end)
 end
 
--- ADDING FEATURES TO UI
-CreateButton("Aim Assist", function(v) TTNI_Configs.AimAssist = v end)
-CreateButton("Silent Aim", function(v) TTNI_Configs.SilentAim = v end)
-CreateButton("Show FOV", function(v) TTNI_Configs.FOVEnabled = v end)
-CreateButton("Chams", function(v) TTNI_Configs.Chams = v end)
-CreateButton("ESP Boxes", function(v) TTNI_Configs.Boxes = v end)
-CreateButton("Health Bar", function(v) TTNI_Configs.Health = v end)
+-- Toggles
+CreateToggle("Flick Aim", function(v) TTNI_Configs.AimAssist = v end)
+CreateToggle("Silent Aim", function(v) TTNI_Configs.SilentAim = v end)
+CreateToggle("Visual Chams", function(v) TTNI_Configs.Chams = v end)
 
--- MAIN LOOP (RENDER STEPPED)
-RunService.RenderStepped:Connect(function()
-    -- FOV Update
+-- FPS FLICK & ENGINE
+RunService.Heartbeat:Connect(function()
     FOVCircle.Visible = TTNI_Configs.FOVEnabled
-    FOVCircle.Radius = TTNI_Configs.FOVRadius
     FOVCircle.Position = Vector2.new(Mouse.X, Mouse.Y + 36)
+    FOVCircle.Radius = TTNI_Configs.FOVRadius
 
-    local target = GetClosestPlayer()
-
-    -- Aim Assist Logic
-    if TTNI_Configs.AimAssist and target and target.Character then
-        Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Character.HumanoidRootPart.Position)
-    end
-
-    -- Visuals Logic (Chams & ESP)
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character then
-            -- Chams
-            local highlight = p.Character:FindFirstChild("TTNI_Highlight")
-            if TTNI_Configs.Chams then
-                if not highlight then
-                    highlight = Instance.new("Highlight")
-                    highlight.Name = "TTNI_Highlight"
-                    highlight.Parent = p.Character
-                end
-                highlight.FillColor = Color3.fromRGB(255, 0, 0)
-                highlight.Enabled = true
-            elseif highlight then
-                highlight.Enabled = false
+    if TTNI_Configs.AimAssist then
+        local target = GetClosestPlayer()
+        if target and target.Character then
+            -- FLICK LOGIC: Lerp yerine doğrudan CFrame odaklaması
+            local targetPos = target.Character.HumanoidRootPart.Position
+            if TTNI_Configs.FlickMode then
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)
             end
         end
     end
 end)
 
--- SILENT AIM HOOK (Using MetaTable)
-local mt = getrawmetatable(game)
-local oldNamecall = mt.__namecall
-setreadonly(mt, false)
-
-mt.__namecall = newcclosure(function(self, ...)
-    local args = {...}
-    local method = getnamecallmethod()
-    
-    if TTNI_Configs.SilentAim and method == "FindPartOnRayWithIgnoreList" then
-        local target = GetClosestPlayer()
-        if target and target.Character then
-            args[1] = Ray.new(Camera.CFrame.Position, (target.Character.HumanoidRootPart.Position - Camera.CFrame.Position).Unit * 1000)
-            return oldNamecall(self, unpack(args))
+-- CHAMS ENGINE
+RunService.RenderStepped:Connect(function()
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            local highlight = p.Character:FindFirstChild("TTNI_H")
+            if TTNI_Configs.Chams then
+                if not highlight then
+                    highlight = Instance.new("Highlight", p.Character)
+                    highlight.Name = "TTNI_H"
+                    highlight.FillColor = Color3.fromRGB(0, 255, 255)
+                end
+            elseif highlight then
+                highlight:Destroy()
+            end
         end
     end
-    return oldNamecall(self, ...)
 end)
 
-setreadonly(mt, true)
-
--- Toggle Menu with Key
-UserInputService.InputBegan:Connect(function(input)
-    if input.KeyCode == TTNI_Configs.MenuKey then
-        MainFrame.Visible = not MainFrame.Visible
-    end
+-- Toggle Menu
+UserInputService.InputBegan:Connect(function(i)
+    if i.KeyCode == TTNI_Configs.MenuKey then Main.Visible = not Main.Visible end
 end)
 
-print("TTNI HUB: Everything made by TTNI - Loaded!")
+print("TTNI HUB Inject Edildi! Yapımcı: ttni131")
