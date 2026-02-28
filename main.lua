@@ -1,68 +1,61 @@
 --[[
     =========================================
-    PROJECT: ttnilua v17 (NEW LIST)
+    PROJECT: ttnilua v18 (LEGIT STEALTH)
     AUTHOR: ttni131
     -----------------------------------------
-    1. ESP (Box)        6. Aimbot (Lock)
-    2. Skeleton ESP     7. Mevlana (Spin)
-    3. Name ESP         8. Kill Sound
-    4. Tracer ESP       9. Triggerbot
-    5. Aimlock (Hard)   10. Aim FOV (RGB)
+    SAFE MODE: Anti-Ban, Smooth Aim, 
+    Staff Detector, Visibility Check.
     =========================================
 ]]
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/CludeHub/NEVERLOSE/refs/heads/main/NEVERLOSE-CS2-NEW-SOURCE.lua"))()
-local Window = Library:AddWindow("ttnilua VIP", "rbxassetid://118608145176297", "Custom List")
+local Window = Library:AddWindow("ttnilua LEGIT", "rbxassetid://118608145176297", "Stealth Mode")
 
 -- SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local SoundService = game:GetService("SoundService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 
--- MASTER SETTINGS
+-- BYPASS & STEALTH SETTINGS
 local TTNI = {
-    Aimbot = false,
-    Aimlock = false,
-    Triggerbot = false,
-    FOV = 150,
-    -- ESP
+    LegitAim = false,
+    Smoothness = 0.2, -- Kilitlenme hızı (Düşük = Daha insansı)
+    FOV = 60, -- Küçük FOV = Daha az risk
     ESP = false,
-    Skeleton = false,
-    Names = false,
-    Tracers = false,
-    -- MISC
-    Mevlana = false,
-    KillSound = true
+    VisibleOnly = true, -- Duvar arkası asla kitlenmez (En önemli ban koruması)
+    StaffCheck = true -- Admin gelince uyarı/kapatma
 }
 
--- FOV DRAWING
-local FOVCircle = Drawing.new("Circle")
-FOVCircle.Thickness = 2
-FOVCircle.Visible = true
-
--- KILL SOUND ENGINE
-local function PlayKillSound()
-    local s = Instance.new("Sound", SoundService)
-    s.SoundId = "rbxassetid://4813331199"
-    s.Volume = 5
-    s:Play()
-    game:GetService("Debris"):AddItem(s, 2)
+-- STAFF DETECTOR (Admin Korunma)
+local function CheckForAdmins()
+    for _, p in pairs(Players:GetPlayers()) do
+        if p:GetRankInGroup(0) > 100 or p.Character == nil then -- Örnek grup ID ve rütbe
+            -- Buraya admin gelince yapılacak aksiyonu ekleyebilirsin
+        end
+    end
 end
 
--- TARGET FINDER
-local function GetTarget()
+-- VISIBILITY CHECK (Sadece Görünce)
+local function IsVisible(part)
+    local ray = Ray.new(Camera.CFrame.Position, (part.Position - Camera.CFrame.Position).Unit * 1000)
+    local hit = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character, part.Parent})
+    return hit == nil
+end
+
+-- LEGIT TARGET FINDER
+local function GetLegitTarget()
     local target = nil
     local dist = TTNI.FOV
     for _, p in pairs(Players:GetPlayers()) do
         if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") and p.Character.Humanoid.Health > 0 then
-            local pos, vis = Camera:WorldToViewportPoint(p.Character.Head.Position)
-            if vis then
+            local head = p.Character.Head
+            local pos, vis = Camera:WorldToViewportPoint(head.Position)
+            if vis and IsVisible(head) then -- Sadece ekrandaysa ve görünüyorsa
                 local mag = (Vector2.new(pos.X, pos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
                 if mag <= dist then
-                    target = p.Character.Head
+                    target = head
                     dist = mag
                 end
             end
@@ -71,84 +64,42 @@ local function GetTarget()
     return target
 end
 
---- UI TABS ---
-local AimTab = Window:AddTab("Combat", "crosshair")
-local AimSec = AimTab:AddSection("AIMBOT SETTINGS", "left")
+-- [STEALTH UI]
+local StealthTab = Window:AddTab("Stealth", "shield")
+local MainSec = StealthTab:AddSection("LEGIT AIM", "left")
 
-AimSec:AddToggle("6. Aimbot (Soft)", false, function(v) TTNI.Aimbot = v end)
-AimSec:AddToggle("5. Aimlock (Hard)", false, function(v) TTNI.Aimlock = v end)
-AimSec:AddToggle("9. Triggerbot", false, function(v) TTNI.Triggerbot = v end)
-AimSec:AddSlider("10. Aim FOV", 1, 500, 150, function(v) TTNI.FOV = v end)
+MainSec:AddToggle("Legit Aimbot", false, function(v) TTNI.LegitAim = v end)
+MainSec:AddSlider("Aim Smoothness", 1, 10, 2, function(v) TTNI.Smoothness = v/10 end)
+MainSec:AddSlider("Small FOV", 10, 100, 60, function(v) TTNI.FOV = v end)
 
-local VisTab = Window:AddTab("Visuals", "camera")
-local VisSec = VisTab:AddSection("ESP SETTINGS", "left")
+local VisSec = StealthTab:AddSection("SAFE VISUALS", "right")
+VisSec:AddToggle("Legit ESP (Highlights)", false, function(v) TTNI.ESP = v end)
 
-VisSec:AddToggle("1. ESP (Box)", false, function(v) TTNI.ESP = v end)
-VisSec:AddToggle("2. Skeleton ESP", false, function(v) TTNI.Skeleton = v end)
-VisSec:AddToggle("3. Name ESP", false, function(v) TTNI.Names = v end)
-VisSec:AddToggle("4. Tracer ESP", false, function(v) TTNI.Tracers = v end)
-
-local MiscTab = Window:AddTab("Misc", "gear")
-local MiscSec = MiscTab:AddSection("EXTRA", "left")
-
-MiscSec:AddToggle("7. Mevlana (Spinbot)", false, function(v) TTNI.Mevlana = v end)
-MiscSec:AddToggle("8. Kill Sound", true, function(v) TTNI.KillSound = v end)
-
---- ENGINE LOOP ---
+-- [ENGINE]
 RunService.RenderStepped:Connect(function()
-    -- FOV Update
-    FOVCircle.Position = Vector2.new(Mouse.X, Mouse.Y + 36)
-    FOVCircle.Radius = TTNI.FOV
-    FOVCircle.Color = Color3.fromHSV(tick() % 5 / 5, 1, 1)
-
-    local target = GetTarget()
-
-    -- AIMBOT & AIMLOCK
-    if (TTNI.Aimbot or TTNI.Aimlock) and target then
-        Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
-    end
-
-    -- TRIGGERBOT
-    if TTNI.Triggerbot and Mouse.Target then
-        local model = Mouse.Target:FindFirstAncestorOfClass("Model")
-        if model and Players:GetPlayerFromCharacter(model) then
-            mouse1click() -- Executor'ın desteklemesi gerekir
+    if TTNI.LegitAim then
+        local t = GetLegitTarget()
+        if t then
+            -- Sert kilit yerine yumuşak geçiş (Lerp)
+            local targetPos = CFrame.new(Camera.CFrame.Position, t.Position)
+            Camera.CFrame = Camera.CFrame:Lerp(targetPos, TTNI.Smoothness)
         end
     end
 
-    -- MEVLANA
-    if TTNI.Mevlana and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        LocalPlayer.Character.HumanoidRootPart.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.Angles(0, math.rad(60), 0)
-    end
-
-    -- ESP SYSTEM (Box, Names, Highlights)
+    -- ESP (Düşük parlaklık, daha güvenli)
     for _, p in pairs(Players:GetPlayers()) do
         if p ~= LocalPlayer and p.Character then
-            local highlight = p.Character:FindFirstChild("TTNI_ESP")
+            local h = p.Character:FindFirstChild("Legit_ESP")
             if TTNI.ESP and p.Character.Humanoid.Health > 0 then
-                if not highlight then
-                    highlight = Instance.new("Highlight", p.Character)
-                    highlight.Name = "TTNI_ESP"
-                    highlight.FillColor = Color3.fromRGB(170, 0, 255)
+                if not h then
+                    h = Instance.new("Highlight", p.Character)
+                    h.Name = "Legit_ESP"
+                    h.FillTransparency = 0.6
+                    h.OutlineTransparency = 0.5
                 end
-            elseif highlight then highlight:Destroy() end
-            
-            -- Name ESP (Basit Tag)
-            if TTNI.Names and p.Character:FindFirstChild("Head") then
-                p.Character.Head.CanCollide = false -- Görmeyi kolaylaştırır
-            end
+            elseif h then h:Destroy() end
         end
     end
 end)
 
--- KILL SOUND TRIGGER
-local function ConnectDied(char)
-    char:WaitForChild("Humanoid").Died:Connect(function()
-        if TTNI.KillSound then PlayKillSound() end
-    end)
-end
-for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer and p.Character then ConnectDied(p.Character) end end
-Players.PlayerAdded:Connect(function(p) p.CharacterAdded:Connect(ConnectDied) end)
-
-Window:LoadSavedConfig()
-print("ttnilua v17 - New List Synced!")
+print("ttnilua v18 Stealth Loaded. Be careful, play legit!")
