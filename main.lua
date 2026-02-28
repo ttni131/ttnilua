@@ -1,8 +1,10 @@
 --[[
     =========================================
-    PROJECT: ttnilua v15 (FINAL ENGINE)
+    PROJECT: ttnilua v16 (ULTIMATE FINAL)
     AUTHOR: ttni131
-    Everything connected to Neverlose UI.
+    -----------------------------------------
+    FEATURES: Rage Aim, Spinbot, Unload, 
+    Kill Sound, Neverlose UI Sync.
     =========================================
 ]]
 
@@ -12,46 +14,53 @@ local Window = Library:AddWindow("ttnilua VIP", "rbxassetid://118608145176297", 
 -- SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 
--- MOTOR AYARLARI (Butonlara Bağlı)
-local TTNI_CORE = {
+local _G_TTNI_RUNNING = true
+
+-- CORE SETTINGS
+local TTNI = {
     Enabled = false,
-    SilentAim = true,
-    FOV = 74.8,
+    FOV = 180,
+    Spin = false,
     KillSound = true,
-    TargetMode = "Closest",
-    WallCheck = true
+    WallCheck = true,
+    TargetPart = "Head"
 }
 
--- SES MOTORU (DİNG)
+-- SES MOTORU
 local function PlayKillSound()
-    local s = Instance.new("Sound", game:GetService("SoundService"))
+    local s = Instance.new("Sound", SoundService)
     s.SoundId = "rbxassetid://4813331199"
     s.Volume = 5
     s:Play()
     game:GetService("Debris"):AddItem(s, 2)
 end
 
--- TARGET SEÇİCİ (GÖRÜŞ HATTI + FOV)
-local function GetTarget()
+-- RAGE AIMBOT (UZAK MESAFE & TAM KİLİT)
+local function GetClosestTarget()
     local target = nil
-    local dist = TTNI_CORE.FOV
+    local dist = 999999 -- Mesafe sınırsız (Uzak mesafe için)
+    local fov_dist = TTNI.FOV
+    
     for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") and p.Character.Humanoid.Health > 0 then
-            local head = p.Character.Head
-            local pos, vis = Camera:WorldToViewportPoint(head.Position)
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild(TTNI.TargetPart) and p.Character.Humanoid.Health > 0 then
+            local part = p.Character[TTNI.TargetPart]
+            local pos, vis = Camera:WorldToViewportPoint(part.Position)
+            
             if vis then
                 local mag = (Vector2.new(pos.X, pos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
-                if mag <= dist then
-                    -- Wall Check (Görüş Açısı)
-                    local ray = Ray.new(Camera.CFrame.Position, (head.Position - Camera.CFrame.Position).Unit * 1000)
-                    local hit = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character, p.Character})
-                    if not hit then
-                        target = head
-                        dist = mag
+                if mag <= fov_dist then
+                    -- Görüş Hattı Kontrolü (Wall Check)
+                    if TTNI.WallCheck then
+                        local ray = Ray.new(Camera.CFrame.Position, (part.Position - Camera.CFrame.Position).Unit * 2000)
+                        local hit = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character, p.Character})
+                        if not hit then target = part; fov_dist = mag end
+                    else
+                        target = part; fov_dist = mag
                     end
                 end
             end
@@ -64,66 +73,60 @@ end
 local RageTab = Window:AddTab("Rage", "crosshair")
 local MainSection = RageTab:AddSection("MAIN", "left")
 
--- Senin İstediğin Butonlar ve Bağlantıları:
-MainSection:AddToggle("Enabled", true, function(value)
-    TTNI_CORE.Enabled = value
+MainSection:AddToggle("Enabled", false, function(v) TTNI.Enabled = v end)
+
+MainSection:AddSlider("Field of View", 1, 500, 180, function(v) TTNI.FOV = v end)
+
+local acc = MainSection:AddAccordion("Hatdogs (Advanced)")
+acc:AddToggle("Mevlana (Spinbot)", false, function(v) TTNI.Spin = v end)
+acc:AddToggle("Wall Check (Legit)", true, function(v) TTNI.WallCheck = v end)
+acc:AddToggle("Kill Sound (Ding)", true, function(v) TTNI.KillSound = v end)
+
+-- [UNLOAD SECTION]
+local MiscTab = Window:AddTab("Misc", "gear")
+local MiscSection = MiscTab:AddSection("SYSTEM", "left")
+
+MiscSection:AddButton("UNLOAD SCRIPT", function()
+    _G_TTNI_RUNNING = false
+    task.wait(0.1)
+    game.CoreGui:FindFirstChild("NEVERLOSE"):Destroy() -- Paneli siler
+    print("ttnilua: Unloaded successfully.")
 end)
 
-MainSection:AddSlider("Field of View", 1, 180, 74.8, function(v)
-    TTNI_CORE.FOV = v
-end, "°")
-
-local toggle = MainSection:AddToggle("Silent Aim", true, function(v)
-    TTNI_CORE.SilentAim = v
-end)
-
-local settings = toggle:AddSettings()
-settings:AddToggle("Automatic Fire", true, function(v) end)
-settings:AddToggle("Kill Sound (Ding)", true, function(v) TTNI_CORE.KillSound = v end)
-
--- [SELECTION SECTION]
-local SelectionSection = RageTab:AddSection("SELECTION", "left")
-SelectionSection:AddDropdown("Target", {"Closest", "Highest Damage", "Random"}, function(v)
-    TTNI_CORE.TargetMode = v
-end)
-
-SelectionSection:AddColorpicker("ESP Color", Color3.fromRGB(26, 123, 255), function(val)
-    -- ESP Rengini Buradan Ayarlayabilirsin
-end)
-
--- [ACCORDION (HATDOGS)]
-local acc = MainSection:AddAccordion("Hatdogs")
-acc:AddToggle("Wall Check (Legit)", true, function(v) TTNI_CORE.WallCheck = v end)
-acc:AddSlider("Spin Speed", 0, 100, 50, function(v) end, "%")
-
--- [CORE LOOP]
+-- ANA DÖNGÜ (ENGINE)
 RunService.RenderStepped:Connect(function()
-    if TTNI_CORE.Enabled then
-        local t = GetTarget()
+    if not _G_TTNI_RUNNING then return end
+
+    -- RAGE AIMBOT EXECUTION
+    if TTNI.Enabled then
+        local t = GetClosestTarget()
         if t then
-            -- Aimbot Lock
+            -- Smoothing yok, tam kilit!
             Camera.CFrame = CFrame.new(Camera.CFrame.Position, t.Position)
         end
+    end
+
+    -- SPINBOT (MEVLANA) EXECUTION
+    if TTNI.Spin and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        LocalPlayer.Character.HumanoidRootPart.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.Angles(0, math.rad(70), 0)
     end
 end)
 
 -- KILL SOUND TRIGGER
-Players.PlayerAdded:Connect(function(p)
-    p.CharacterAdded:Connect(function(char)
-        char:WaitForChild("Humanoid").Died:Connect(function()
-            if TTNI_CORE.KillSound then PlayKillSound() end
-        end)
-    end)
-end)
-
--- Mevcut oyuncular için de aktif et
-for _, p in pairs(Players:GetPlayers()) do
-    if p ~= LocalPlayer and p.Character then
-        p.Character.Humanoid.Died:Connect(function()
-            if TTNI_CORE.KillSound then PlayKillSound() end
+local function ConnectDied(char)
+    local hum = char:WaitForChild("Humanoid", 5)
+    if hum then
+        hum.Died:Connect(function()
+            if TTNI.KillSound and _G_TTNI_RUNNING then PlayKillSound() end
         end)
     end
 end
 
+for _, p in pairs(Players:GetPlayers()) do
+    if p ~= LocalPlayer and p.Character then ConnectDied(p.Character) end
+    p.CharacterAdded:Connect(ConnectDied)
+end
+Players.PlayerAdded:Connect(function(p) p.CharacterAdded:Connect(ConnectDied) end)
+
 Window:LoadSavedConfig()
-print("ttnilua v15 LOADED - Neverlose Engine Synced!")
+print("ttnilua v16: HER SEY CALISIYOR! (Mevlana, Unload, Fixed Aim)")
